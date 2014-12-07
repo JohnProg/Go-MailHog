@@ -33,6 +33,7 @@ func Accept(remoteAddress string, conn io.ReadWriteCloser, storage storage.Stora
 	proto.ValidateSenderHandler = session.validateSender
 	proto.ValidateRecipientHandler = session.validateRecipient
 	proto.ValidateAuthenticationHandler = session.validateAuthentication
+	proto.GetAuthenticationMechanismsHandler = func() []string { return []string{"EXTERNAL", "CRAM-MD5", "LOGIN", "PLAIN"} }
 
 	session.logf("Starting session")
 	session.Write(proto.Start())

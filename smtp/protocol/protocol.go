@@ -3,6 +3,7 @@ package protocol
 // http://www.rfc-editor.org/rfc/rfc5321.txt
 
 import (
+	"encoding/base64"
 	"errors"
 	"log"
 	"regexp"
@@ -58,6 +59,9 @@ type Protocol struct {
 	// parameters are valid, otherwise false. If nil, all authentication
 	// attempts will be accepted.
 	ValidateAuthenticationHandler func(mechanism string, args ...string) (errorReply *Reply, ok bool)
+	// GetAuthenticationMechanismsHandler should return an array of strings
+	// listing accepted authentication mechanisms
+	GetAuthenticationMechanismsHandler func() []string
 }
 
 // NewProtocol returns a new SMTP state machine in INVALID state
@@ -191,7 +195,17 @@ func (proto *Protocol) Command(command *Command) (reply *Reply) {
 		proto.logf("Got PLAIN authentication response: '%s', switching to MAIL state", command.args)
 		proto.state = MAIL
 		if proto.ValidateAuthenticationHandler != nil {
-			if reply, ok := proto.ValidateAuthenticationHandler("PLAIN", command.orig); !ok {
+			// TODO error handling
+			val, _ := base64.StdEncoding.DecodeString(command.orig)
+			bits := strings.Split(string(val), string(rune(0)))
+
+			if len(bits) < 3 {
+				return ReplyError(errors.New("Badly formed parameter"))
+			}
+
+			user, pass := bits[1], bits[2]
+
+			if reply, ok := proto.ValidateAuthenticationHandler("PLAIN", user, pass); !ok {
 				return reply
 			}
 		}
@@ -324,7 +338,15 @@ func (proto *Protocol) EHLO(args string) (reply *Reply) {
 	proto.logf("Got EHLO command, switching to MAIL state")
 	proto.state = MAIL
 	proto.message.Helo = args
-	return ReplyOk("Hello "+args, "PIPELINING", "AUTH EXTERNAL CRAM-MD5 LOGIN PLAIN")
+	replyArgs := []string{"Hello " + args, "PIPELINING"}
+
+	if proto.GetAuthenticationMechanismsHandler != nil {
+		mechanisms := proto.GetAuthenticationMechanismsHandler()
+		if len(mechanisms) > 0 {
+			replyArgs = append(replyArgs, "AUTH "+strings.Join(mechanisms, " "))
+		}
+	}
+	return ReplyOk(replyArgs...)
 }
 
 // ParseMAIL returns the forward-path from a MAIL command argument

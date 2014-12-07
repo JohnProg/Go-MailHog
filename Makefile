@@ -14,6 +14,12 @@ ui:
 mta:
 	go install ./MailHog-MTA
 
+mta-tools:
+	go install ./MailHog-MTA/tools/mhmta-admin
+
+run-mta: mta mta-tools
+	sudo `which MailHog-MTA`
+
 bindata:
 	go-bindata -o MailHog-UI/assets/assets.go -pkg assets -prefix MailHog-UI/ MailHog-UI/assets/...
 
