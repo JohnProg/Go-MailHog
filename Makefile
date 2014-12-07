@@ -11,6 +11,9 @@ server:
 ui:
 	go install ./MailHog-UI
 
+mta:
+	go install ./MailHog-MTA
+
 bindata:
 	go-bindata -o MailHog-UI/assets/assets.go -pkg assets -prefix MailHog-UI/ MailHog-UI/assets/...
 
